@@ -1,0 +1,44 @@
+html {
+	margin: 0px;
+	padding: 0px;
+	overflow: hidden;
+	height: 100%;
+	width: 100%;
+}
+
+body {
+	margin: 0px;
+	padding: 0px;
+	background-color: #171935;
+	overflow: hidden;
+	height: 100%;
+	width: 100%;
+}
+
+#logo {
+	width: 100%;
+	text-align: center;
+	margin-top: 54px;
+}
+
+#canvasDiv {
+}
+
+#canvas {
+	position: absolute;
+	left: 0;
+	top: 0;
+}
+
+#listDiv {
+	display: none;
+	position: absolute;
+	left: 0;
+	top: 0;
+}
+#title {
+	font: 2em Calibri, Helvetica;
+	color: white;
+	width: 100%;
+	text-align: center;
+}
