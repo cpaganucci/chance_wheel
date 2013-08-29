@@ -72,22 +72,25 @@ function Wheel( canvas )
 	this._rotationAngle = 0;
 	this._lastTime = 0;
 	this._wedgeWidth = 0;
+	this._wedgeAngle = 0;
+	this._swipeStartRotation = 0;
+	this._spinDirection = 1;
 
-	//events
-	var self = this;
-	canvas.on( 'mousemove', function( e ){
-		self.onMouseMove( e );
-	});
-	canvas.on( 'mousedown', function(e){
-		self.onMouseDown(e);
-	});
-	canvas.on( 'mouseup', function(e){
-		self.onMouseUp(e);
-	});
-    canvas.bind('touchend', function (e) {
-       e.preventDefault();
-       self.onMouseUp(e);
-    });
+	// //events
+	// var self = this;
+	// canvas.on( 'mousemove', function( e ){
+	// 	self.onMouseMove( e );
+	// });
+	// canvas.on( 'mousedown', function(e){
+	// 	self.onMouseDown(e);
+	// });
+	// canvas.on( 'mouseup', function(e){
+	// 	self.onMouseUp(e);
+	// });
+ //    canvas.bind('touchend', function (e) {
+ //       e.preventDefault();
+ //       self.onMouseUp(e);
+ //    });
 
   	//init
 	this.startRender();
@@ -109,22 +112,52 @@ Wheel.prototype.updateChoices = function( strList )
 	}
 }
 
-Wheel.prototype.spin = function()
+Wheel.prototype.spin = function( speed )
 {
 	this._isSpinning = true;
 
-	this._initSpeed = this._curSpeed = this.randFloat( this.MIN_WHEEL_SPEED, this.MAX_WHEEL_SPEED );
+//	this._initSpeed = this._curSpeed = this.randFloat( this.MIN_WHEEL_SPEED, this.MAX_WHEEL_SPEED );
+	this._initSpeed = this._curSpeed = speed;
 }
 
-Wheel.prototype.move = function( units )
-{
-	this._rotationAngle += units * -0.005;
-}
+// Wheel.prototype.move = function( units )
+// {
+// 	this._rotationAngle += units * -0.005;
+// }
 
 Wheel.prototype.resize = function() 
 {
-	var wedgeAngleHalf = Math.PI / this._choices.length;
-	this._wedgeWidth = this.radius * Math.sin( wedgeAngleHalf ) * 2;
+	this._wedgeAngle = Math.PI * 2 / this._choices.length;
+	this._wedgeWidth = this.radius * Math.sin( this._wedgeAngle / 2 ) * 2;
+}
+
+Wheel.prototype.swipe = function( event, phase, direction, distance, fingers )
+{
+	if( this._isSpinning )
+		return;
+
+	if( direction == 'up' || direction == 'down')
+		return;
+
+	if( direction == 'left' )
+		this._spinDirection = -1;
+	else
+		this._spinDirection = 1;
+
+	if( phase == 'start' )
+	{
+		this._swipeStartRotation = this._rotationAngle;
+	}
+
+	else if( phase == 'move' )
+	{
+		this._rotationAngle = this._swipeStartRotation + parseInt( distance ) * 0.001 * this._spinDirection;
+	}
+
+	else if( phase == 'end' )
+	{
+		this.spin( this.randFloat( this.MIN_WHEEL_SPEED, this.MAX_WHEEL_SPEED ) * this._spinDirection );
+	}
 }
 
 
@@ -222,44 +255,61 @@ Wheel.prototype.render = function()
 
 Wheel.prototype.decelerateWheel = function( t )
 {
-	if( this._curSpeed > 0.0 )
+	if( this._isSpinning )
 	{
 		var s = this._curSpeed;
-		s -= this.DECEL_FACTOR * t;
+		s += this.DECEL_FACTOR * t * -this._spinDirection;
 		var arc = Math.PI * 2 / this._choices.length;
-		if( s <= 0 )
+		if( ( this._spinDirection == 1 && s <= 1 ) || ( this._spinDirection == -1 && s >= -1 ) )
 		{
-			if( ( this._rotationAngle + arc/2 ) % arc < 0.01 )
-			{
-				this._curSpeed = 0.0;
-				this._isSpinning = false;
-			}
-			else
-				this._curSpeed = 0.2;
+			this._isSpinning = false;
+			this.settle();
 		}
 		else
-			this._curSpeed -= this.DECEL_FACTOR * t;
+			this._curSpeed = s;
 	}
-	else
-	{
-		this._curSpeed = 0.0;
-		this._isSpinning = false;
-	}
+	// else
+	// {
+	// 	this.stopSpin();
+	// }
 }
 
-Wheel.prototype.onMouseMove = function( e )
+Wheel.prototype.settle = function()
 {
+	var curAngle = this._rotationAngle % ( Math.PI * 2 );
+	var curWedge = Math.floor( curAngle / this._wedgeAngle );
+	var targetAngle = curWedge * this._wedgeAngle + this._wedgeAngle / 2;
+	var self = this;
+	$({angle: curAngle}).animate({angle: targetAngle}, {
+		duration: 1000,
+		step: function() {
+			self._rotationAngle = this.angle;
+		},
+		complete: function() {
+			self.stopSpin();
+		}
+	});
 }
 
-Wheel.prototype.onMouseDown = function( e )
+Wheel.prototype.stopSpin = function()
 {
+	this._curSpeed = 0.0;
+	this._isSpinning = false;
 }
 
-Wheel.prototype.onMouseUp = function( e )
-{
-	if( !this._isSpinning )
-		this.spin();
-}
+// Wheel.prototype.onMouseMove = function( e )
+// {
+// }
+
+// Wheel.prototype.onMouseDown = function( e )
+// {
+// }
+
+// Wheel.prototype.onMouseUp = function( e )
+// {
+// 	if( !this._isSpinning )
+// 		this.spin();
+// }
 
 Wheel.prototype.randInt = function( range )
 {

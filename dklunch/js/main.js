@@ -36,6 +36,10 @@ $(function()
 	_list.val( defaults.join( '\n' ) );
 	updateList();
 
+	$('#mainContainer').swipe({
+		swipeStatus: swipe
+	})
+
 	$(window).resize( function()
 	{
 		onResize();
@@ -50,6 +54,12 @@ function updateList()
 
 	onResize();
 }
+
+function swipe( event, phase, direction, distance, fingers )
+{
+	_wheel.swipe( event, phase, direction, distance, fingers );
+}
+
 
 function onResize() 
 {
