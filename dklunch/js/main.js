@@ -4,7 +4,12 @@ var WEDGE_SCREEN_PCT = .617;
 //vars
 var _canvas,
 	_list,
-	_wheel
+	_wheel,
+	_introDiv,
+	_resultDiv,
+	_resultText,
+	_btnMoreInfo,
+	_arrowDiv
 ;
 
 $(function()
@@ -12,32 +17,49 @@ $(function()
     _canvas = $('#canvas');
 	_wheel = new Wheel( _canvas );
     _wheel.paletteID = 1;
-    _wheel.forceEven = true;
-    _wheel.font = 'Abril Fatface'
-    _wheel.fontSize = 0.07;
-    _wheel.fontHorizontal = true;
+    _wheel.hideText = true;
+    // _wheel.forceEven = true;
+    // _wheel.font = 'Abril Fatface'
+    // _wheel.fontSize = 0.07;
+    // _wheel.fontHorizontal = true;
+    _wheel.onComplete = function()
+    {
+    	onWheelComplete();
+    }
+    _wheel.onSpinStart = function()
+    {
+    	onSpinStart();
+    }
+    _wheel.onSpinEnd = function()
+    {
+    	onSpinEnd();
+    }
 
-	_list = $('#list');
-	_list.bind( 'input propertychange', function(){
-		updateList();
+    //wheel expects a list of items separated by a newline
+    //we'll put in 10 dummy items that won't appear
+    var str = '';
+    for( var i=0; i<9; i++ )
+    {
+    	str += i + '\n';
+    }
+	_wheel.updateChoices( str );
+
+	_introDiv = $('#introDiv');
+	_arrowDiv = $('#arrowDiv');
+	_resultDiv = $('#resultDiv');
+	_resultDiv.hide();
+	_resultText = $('#resultText');
+
+	_btnMoreInfo = $('#btnMoreInfo');
+	_btnMoreInfo.click( function( e )
+	{
+		e.stopPropagation();
+		onBtnMoreInfo();
 	});
-	var defaults = [
-		'Chipotle',
-		'Tangerine Tree',
-		'Lost Lake',
-		'Other Coast',
-		'Fish Fry',
-		'Bombay Bistro',
-		'Rancho Bravo',
-		'Ayutthaya',
-		'Ballet',
-		'Oddfellows'
-	];
-	_list.val( defaults.join( '\n' ) );
-	updateList();
 
 	$('#mainContainer').swipe({
-		swipeStatus: swipe
+		swipeStatus: swipe,
+		allowPageScroll: 'vertical'
 	})
 
 	$(window).resize( function()
@@ -47,17 +69,34 @@ $(function()
 	onResize();
 });
 
-function updateList()
+function onWheelComplete()
 {
-	var str = _list.val().trim();
-	_wheel.updateChoices( str );
-
-	onResize();
+	_resultText.html( 'This is a really long Result' );
 }
 
-function swipe( event, phase, direction, distance, fingers )
+function onSpinStart()
 {
-	_wheel.swipe( event, phase, direction, distance, fingers );
+	_introDiv.fadeOut( 'slow' );
+	_resultDiv.fadeOut( 'slow' );
+	_arrowDiv.fadeOut( 'slow' );
+}
+
+function onSpinEnd()
+{
+	_resultDiv.fadeIn( 'slow' );
+	_arrowDiv.fadeIn( 'slow' );
+}
+
+function onBtnMoreInfo()
+{
+
+	var url = 'http://google.com';
+	window.open( url, '_blank' ); 
+}
+
+function swipe( event, phase, direction, distance, duration, fingers )
+{
+	_wheel.swipe( event, phase, direction, distance, duration, fingers );
 }
 
 

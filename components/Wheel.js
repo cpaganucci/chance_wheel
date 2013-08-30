@@ -2,7 +2,7 @@ function Wheel( canvas )
 {
 	//constants
 	this.MIN_WHEEL_SPEED = 6; //radians per sec
-	this.MAX_WHEEL_SPEED = 15;
+	this.MAX_WHEEL_SPEED = 6;
 	this.DECEL_FACTOR = 2;
 
 	//http://tools.medialab.sciences-po.fr/iwanthue
@@ -61,6 +61,10 @@ function Wheel( canvas )
 	this.font = 'Helvetica';
 	this.fontSize = 0.066;
 	this.fontHorizontal = false;
+	this.hideText = false;
+	this.onComplete = function(){}
+	this.onSpinStart = function(){}
+	this.onSpinEnd = function(){}
 
 	//"private" member vars
 	this._canvas = canvas[0];
@@ -93,6 +97,8 @@ function Wheel( canvas )
  //    });
 
   	//init
+  	jQuery.easing.def = "easeOutCubic";
+
 	this.startRender();
 }
 
@@ -118,6 +124,25 @@ Wheel.prototype.spin = function( speed )
 
 //	this._initSpeed = this._curSpeed = this.randFloat( this.MIN_WHEEL_SPEED, this.MAX_WHEEL_SPEED );
 	this._initSpeed = this._curSpeed = speed;
+
+	var duration = 3;
+	var curAngle = this._rotationAngle % ( Math.PI * 2 );
+	var targetAngle = curAngle + speed * duration;
+	var targetWedge = Math.floor( targetAngle / this._wedgeAngle );
+	if( targetWedge % 2 != 0 ) //only land on even (dark) slices
+		targetWedge++;
+	targetAngle = targetWedge * this._wedgeAngle + this._wedgeAngle / 2;
+	var self = this;
+	$({angle: curAngle}).animate({angle: targetAngle}, {
+		duration: duration * 1000,
+//		easing: easeOutCubic,
+		step: function() {
+			self._rotationAngle = this.angle;
+		},
+		complete: function() {
+			self.stopSpin();
+		}
+	});
 }
 
 // Wheel.prototype.move = function( units )
@@ -129,9 +154,11 @@ Wheel.prototype.resize = function()
 {
 	this._wedgeAngle = Math.PI * 2 / this._choices.length;
 	this._wedgeWidth = this.radius * Math.sin( this._wedgeAngle / 2 ) * 2;
+
+	this._rotationAngle = this._wedgeAngle / 2;
 }
 
-Wheel.prototype.swipe = function( event, phase, direction, distance, fingers )
+Wheel.prototype.swipe = function( event, phase, direction, distance, duration, fingers )
 {
 	if( this._isSpinning )
 		return;
@@ -147,6 +174,7 @@ Wheel.prototype.swipe = function( event, phase, direction, distance, fingers )
 	if( phase == 'start' )
 	{
 		this._swipeStartRotation = this._rotationAngle;
+		this.onSpinStart.call();
 	}
 
 	else if( phase == 'move' )
@@ -156,7 +184,14 @@ Wheel.prototype.swipe = function( event, phase, direction, distance, fingers )
 
 	else if( phase == 'end' )
 	{
-		this.spin( this.randFloat( this.MIN_WHEEL_SPEED, this.MAX_WHEEL_SPEED ) * this._spinDirection );
+		if( duration < 500 && distance > 50 )
+		{
+			this.spin( this.randFloat( this.MIN_WHEEL_SPEED, this.MAX_WHEEL_SPEED ) * this._spinDirection );
+		}
+		else
+		{
+			this.settle();
+		}
 	}
 }
 
@@ -185,11 +220,11 @@ Wheel.prototype.render = function()
 	var elapsedTime = this._lastTime > 0 ? timeNow - this._lastTime : 0;
 	this._lastTime = timeNow;
 
-	if( this._isSpinning )
-	{
-		this.decelerateWheel( elapsedTime );
-		this._rotationAngle += this._curSpeed * elapsedTime;
-	}
+	// if( this._isSpinning )
+	// {
+	// 	this.decelerateWheel( elapsedTime );
+	// 	this._rotationAngle += this._curSpeed * elapsedTime;
+	// }
 	
 	var pct = 1 / this._choices.length;
 	var angle = 2 * Math.PI * pct;
@@ -211,46 +246,49 @@ Wheel.prototype.render = function()
 		// 	this._context.stroke();
 	}
 
-	this._context.save();
-	this._context.translate( this.centerX, this.centerY );
-
-	for( var j=0; j<this._choices.length; j++ )
+	if( !this.hideText )
 	{
-		var start = j * angle + this._rotationAngle;
-
 		this._context.save();
+		this._context.translate( this.centerX, this.centerY );
 
-		var fontSize = this.fontSize * this._wedgeWidth;
-		this._context.font = fontSize + 'pt ' + this.font;
-		this._context.textAlign = 'center';
-		var metrics = this._context.measureText( this._choices[j] );
-
-		this._context.rotate( start );
-		this._context.translate( -this.radius + ( 4 * fontSize ), 0 );// + metrics.height, 0 );//metrics.width/2 );
-		if( this.fontHorizontal )
+		for( var j=0; j<this._choices.length; j++ )
 		{
-			this._context.rotate( -Math.PI / 2 );
-		}
+			var start = j * angle + this._rotationAngle;
 
-      	this._context.fillStyle = '#fff';
-		this._context.fillText( this._choices[j], 0, 0 );
+			this._context.save();
+
+			var fontSize = this.fontSize * this._wedgeWidth;
+			this._context.font = fontSize + 'pt ' + this.font;
+			this._context.textAlign = 'center';
+			var metrics = this._context.measureText( this._choices[j] );
+
+			this._context.rotate( start );
+			this._context.translate( -this.radius + ( 4 * fontSize ), 0 );// + metrics.height, 0 );//metrics.width/2 );
+			if( this.fontHorizontal )
+			{
+				this._context.rotate( -Math.PI / 2 );
+			}
+
+	      	this._context.fillStyle = '#fff';
+			this._context.fillText( this._choices[j], 0, 0 );
+
+			this._context.restore();
+		}
 
 		this._context.restore();
 	}
 
-	this._context.restore();
-
-	//arrow
-	this._context.save();
-	this._context.translate( this.centerX - this.radius + 10, this.centerY );
-	this._context.beginPath();
-	this._context.moveTo( 0, 0 );
-	this._context.lineTo( -40, -20 );
-	this._context.lineTo( -40, 20 );
-	this._context.closePath();
-	this._context.fillStyle = '#fff';
-	this._context.fill();
-	this._context.restore();
+	// //arrow
+	// this._context.save();
+	// this._context.translate( this.centerX - this.radius + 10, this.centerY );
+	// this._context.beginPath();
+	// this._context.moveTo( 0, 0 );
+	// this._context.lineTo( -40, -20 );
+	// this._context.lineTo( -40, 20 );
+	// this._context.closePath();
+	// this._context.fillStyle = '#fff';
+	// this._context.fill();
+	// this._context.restore();
 }
 
 Wheel.prototype.decelerateWheel = function( t )
@@ -278,6 +316,8 @@ Wheel.prototype.settle = function()
 {
 	var curAngle = this._rotationAngle % ( Math.PI * 2 );
 	var curWedge = Math.floor( curAngle / this._wedgeAngle );
+	if( curWedge % 2 != 0 ) //only land on even (dark) wedge
+		curWedge++;
 	var targetAngle = curWedge * this._wedgeAngle + this._wedgeAngle / 2;
 	var self = this;
 	$({angle: curAngle}).animate({angle: targetAngle}, {
@@ -295,6 +335,9 @@ Wheel.prototype.stopSpin = function()
 {
 	this._curSpeed = 0.0;
 	this._isSpinning = false;
+
+	this.onComplete.call();
+	this.onSpinEnd.call();
 }
 
 // Wheel.prototype.onMouseMove = function( e )
